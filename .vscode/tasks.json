@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "DPL: Install dependencies",
+      "type": "process",
+      "command": "npm.cmd",
+      "args": ["install"],
+      "problemMatcher": []
+    },
+    {
+      "label": "DPL: Generate database client",
+      "type": "process",
+      "command": "npm.cmd",
+      "args": ["run", "db:generate"],
+      "problemMatcher": []
+    },
+    {
+      "label": "DPL: Apply database migrations",
+      "type": "process",
+      "command": "npm.cmd",
+      "args": ["run", "db:migrate"],
+      "problemMatcher": []
+    },
+    {
+      "label": "DPL: First-time setup",
+      "dependsOrder": "sequence",
+      "dependsOn": ["DPL: Install dependencies"],
+      "problemMatcher": []
+    },
+    {
+      "label": "DPL: Run locally (no Docker)",
+      "type": "process",
+      "command": "npm.cmd",
+      "args": ["run", "dev"],
+      "group": {"kind": "build", "isDefault": true},
+      "presentation": {"reveal": "always", "panel": "dedicated"},
+      "problemMatcher": []
+    }
+  ]
+}

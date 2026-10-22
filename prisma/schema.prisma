@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+enum Status {
+  AWAITING_PAYMENT
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+model Settings {
+  id Int @id @default(1)
+  name String @default("DHANDALSHA PREMIER LEAGUE")
+  description String @default("Cricket. Community. A new chapter.")
+  fee Int @default(100)
+  capacity Int @default(150)
+  open Boolean @default(true)
+  opensAt DateTime?
+  closesAt DateTime?
+  rules String @default("আয়োজকের অনুমোদিত নিয়মাবলি শীঘ্রই প্রকাশিত হবে।")
+  contact String @default("")
+  fields Json @default("{}")
+}
+model Registration {
+  id String @id @default(uuid())
+  reference String @unique
+  mobile String @unique
+  fullName String
+  team String @default("")
+  data Json
+  fee Int
+  status Status @default(AWAITING_PAYMENT)
+  tokenHash String @unique
+  requestKey String @unique
+  requestHash String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  payments Payment[]
+  history Verification[]
+  @@index([status, createdAt])
+  @@index([fullName])
+}
+model Payment {
+  id String @id @default(uuid())
+  registrationId String
+  registration Registration @relation(fields:[registrationId], references:[id], onDelete:Cascade)
+  transactionId String @unique
+  storageKey String @unique
+  createdAt DateTime @default(now())
+  @@index([registrationId, createdAt])
+}
+model Verification {
+  id String @id @default(uuid())
+  registrationId String
+  registration Registration @relation(fields:[registrationId], references:[id], onDelete:Cascade)
+  adminId String
+  admin Admin @relation(fields:[adminId], references:[id])
+  status Status
+  reason String @default("")
+  createdAt DateTime @default(now())
+}
+model Admin {
+  id String @id @default(uuid())
+  email String @unique
+  passwordHash String
+  sessions Session[]
+  verifications Verification[]
+}
+model Session {
+  tokenHash String @id
+  adminId String
+  admin Admin @relation(fields:[adminId], references:[id], onDelete:Cascade)
+  expiresAt DateTime
+  @@index([expiresAt])
+}
+model Audit {
+  id String @id @default(uuid())
+  adminId String
+  action String
+  target String
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+}
+model RateBucket {
+  key String @id
+  hits Int
+  resetAt DateTime
+  @@index([resetAt])
+}

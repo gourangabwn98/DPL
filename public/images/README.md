@@ -1,0 +1,2 @@
+Place the organiser's genuine payment QR at `public/images/payment-qr.png` and set PAYMENT_QR_READY=true after checking the payee and testing a real scan. No fake QR is included. Keep this image static and read-only for the application process. Replace it only through a controlled deployment.
+No poster or logo was supplied. Do not claim the typographic league badge is the organiser's official logo.
