@@ -5,36 +5,55 @@
       "label": "DPL: Install dependencies",
       "type": "process",
       "command": "npm.cmd",
-      "args": ["install"],
+      "args": [
+        "install"
+      ],
       "problemMatcher": []
     },
     {
       "label": "DPL: Generate database client",
       "type": "process",
       "command": "npm.cmd",
-      "args": ["run", "db:generate"],
+      "args": [
+        "run",
+        "db:generate"
+      ],
       "problemMatcher": []
     },
     {
-      "label": "DPL: Apply database migrations",
+      "label": "DPL: Sync MongoDB indexes",
       "type": "process",
       "command": "npm.cmd",
-      "args": ["run", "db:migrate"],
+      "args": [
+        "run",
+        "db:push"
+      ],
       "problemMatcher": []
     },
     {
       "label": "DPL: First-time setup",
       "dependsOrder": "sequence",
-      "dependsOn": ["DPL: Install dependencies"],
+      "dependsOn": [
+        "DPL: Install dependencies"
+      ],
       "problemMatcher": []
     },
     {
-      "label": "DPL: Run locally (no Docker)",
+      "label": "DPL: Run MERN locally",
       "type": "process",
       "command": "npm.cmd",
-      "args": ["run", "dev"],
-      "group": {"kind": "build", "isDefault": true},
-      "presentation": {"reveal": "always", "panel": "dedicated"},
+      "args": [
+        "run",
+        "dev"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
       "problemMatcher": []
     }
   ]

@@ -4,24 +4,24 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/local.mjs",
+    "dev": "node scripts/mongo-local.mjs",
     "dev:app": "concurrently --kill-others \"tsx watch server/index.ts\" \"vite --host localhost\"",
     "build": "tsc --noEmit && vite build && tsc -p tsconfig.server.json",
-    "build:vercel": "prisma generate && npm run build",
-    "test:integration": "node scripts/test-integration.mjs",
+    "build:vercel": "prisma generate && prisma db push --skip-generate && npm run build",
+    "test:integration": "node scripts/test-mongodb.mjs",
     "test:ui": "tsx scripts/test-ui.mjs",
     "start": "node dist-server/server/index.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate deploy",
-    "db:dev": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "uploads:copy": "tsx scripts/copy-uploads-to-mongodb.ts",
     "admin:create": "tsx server/cli.ts admin",
-    "data:purge": "tsx server/cli.ts purge"
+    "data:purge": "tsx server/cli.ts purge",
+    "test:security": "node --experimental-strip-types --test tests/security.node.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.0.0",
     "@prisma/client": "6.19.0",
     "argon2": "^0.44.0",
     "cookie-parser": "^1.4.7",
@@ -38,7 +38,6 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "embedded-postgres": "18.4.0-beta.17",
     "@eslint/js": "^9.0.0",
     "@types/cookie-parser": "^1.4.0",
     "@types/express": "^5.0.0",
@@ -50,6 +49,7 @@
     "@vitejs/plugin-react": "^4.0.0",
     "concurrently": "^9.0.0",
     "eslint": "^9.0.0",
+    "mongodb-memory-server": "^10.4.3",
     "prisma": "6.19.0",
     "supertest": "^7.0.0",
     "tsx": "^4.0.0",

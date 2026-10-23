@@ -1,5 +1,8 @@
+import { PlayerIdentityCard } from '../player-cards';
+import { ProfilePhoto } from '../profile-photo';
+import { useLanguage } from '../language';
 import { RulesEditor } from './rules-editor';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, statusLabel } from '../api';
 import { optionalFields } from '../../shared/validation';
@@ -26,6 +29,9 @@ export function Login() {
     }}><label>Email<input type="email" name="email" required autoComplete="username" /></label><label>Password<input type="password" name="password" required autoComplete="current-password" /></label><Notice error={error} /><Button busy={busy}>Sign in securely →</Button></form></Page>;
 }
 export function Admin() {
+  const { t, language } = useLanguage();
+  const [playerView, setPlayerView] = useState<'cards' | 'table'>('cards');
+  const profileRef = useRef<HTMLElement>(null);
   const [authenticated, setAuthenticated] = useState(false);
   const [tab, setTab] = useState('Players');
   const [dash, setDash] = useState<any>(null);
@@ -44,6 +50,13 @@ export function Admin() {
   const {
     refresh
   } = useTournament();
+  useEffect(() => {
+    if (detail) { profileRef.current?.focus({ preventScroll: true }); profileRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); }
+  }, [detail?.id]);
+  function openProfile(id: string) {
+    setReason(''); setError('');
+    api('/admin/players/' + encodeURIComponent(id)).then(setDetail).catch(e => setError(e.message));
+  }
   async function load(targetPage = page) {
     const d = await api('/admin/dashboard');
     setDash(d);
@@ -102,14 +115,14 @@ export function Admin() {
       }}><input aria-label="Search players" placeholder="Reference, name, mobile or team" value={q} onChange={e => setQ(e.target.value)} /><select aria-label="Filter status" value={status} onChange={e => {
           setStatus(e.target.value);
           setPage(1);
-        }}><option value="">All statuses</option>{['AWAITING_PAYMENT', 'UNDER_REVIEW', 'APPROVED', 'REJECTED'].map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}</select><button>Search</button><a className="button secondary" href="/api/admin/export">Export CSV ↓</a></form><div className="table-wrap"><table><thead><tr><th>Reference</th><th>Player</th><th>Mobile</th><th>Status</th><th>Review</th></tr></thead><tbody>{players?.items.map((r: any) => <tr key={r.id}><td>{r.reference}</td><td>{r.fullName}<small>{r.team}</small></td><td>{r.mobile}</td><td>{statusLabel(r.status)}</td><td><button className="secondary" onClick={() => {
+        }}><option value="">All statuses</option>{['AWAITING_PAYMENT', 'UNDER_REVIEW', 'APPROVED', 'REJECTED'].map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}</select><button>Search</button><a className="button secondary" href="/api/admin/export">Export CSV ↓</a></form><div className="player-view-toolbar"><p className="muted">{t({ en: 'Registered player profiles', bn: 'নিবন্ধিত খেলোয়াড়দের প্রোফাইল' })} · {players?.total ?? 0}</p><div className="player-view-toggle" role="group" aria-label="Player display mode"><button type="button" className={playerView === 'cards' ? '' : 'secondary'} aria-pressed={playerView === 'cards'} onClick={() => setPlayerView('cards')}>{t({ en: 'Identity cards', bn: 'পরিচয় কার্ড' })}</button><button type="button" className={playerView === 'table' ? '' : 'secondary'} aria-pressed={playerView === 'table'} onClick={() => setPlayerView('table')}>{t({ en: 'Table', bn: 'তালিকা' })}</button></div></div>{playerView === 'cards' ? <>{!players ? <p role="status">Loading player profiles…</p> : players.items.length ? <div className="player-id-grid" aria-label="Player identity cards">{players.items.map((r: any) => <PlayerIdentityCard key={r.id} player={r} onOpen={() => openProfile(r.id)} />)}</div> : <p className="player-gallery-empty">{t({ en: 'No matching registrations.', bn: 'কোনো নিবন্ধন পাওয়া যায়নি।' })}</p>}</> : <><div className="table-wrap" role="region" aria-label="Scrollable registration table" tabIndex={0}><table><thead><tr><th>Reference</th><th>Player</th><th>Mobile</th><th>Status</th><th>Review</th></tr></thead><tbody>{players?.items.map((r: any) => <tr key={r.id}><td>{r.reference}</td><td>{r.fullName}<small>{r.team}</small></td><td>{r.mobile}</td><td>{statusLabel(r.status)}</td><td><button className="secondary" onClick={() => {
                   setReason('');
                   api('/admin/players/' + r.id).then(setDetail).catch(e => setError(e.message));
-                }}>View</button></td></tr>)}</tbody></table>{players?.total === 0 && <p>No matching registrations.</p>}</div><div className="pagination"><button className="secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button><span>Page {page} · {players?.total ?? 0} records</span><button className="secondary" disabled={page * 20 >= (players?.total ?? 0)} onClick={() => setPage(page + 1)}>Next</button></div>{detail && <article className="card detail"><button className="secondary" onClick={() => setDetail(null)}>Close details</button><h2>{detail.fullName}</h2><p>{detail.reference} · {statusLabel(detail.status)} · ₹{detail.fee}</p><dl>{Object.entries(detail.data).filter(([k]) => !['consent', 'guardianConsent'].includes(k)).map(([k, v]) => <div key={k}><dt>{labels[k] || k}</dt><dd>{String(v)}</dd></div>)}</dl><h3>Payment submissions</h3>{detail.payments.map((p: any) => <div className="history" key={p.id}><p>Transaction: <strong>{p.transactionId}</strong> · {new Date(p.createdAt).toLocaleString()}</p><a href={'/api/admin/proofs/' + p.id} target="_blank" rel="noreferrer">Open private screenshot ↗</a></div>)}{detail.status === 'UNDER_REVIEW' && <><label>Review / rejection reason<textarea value={reason} maxLength={1000} onChange={e => setReason(e.target.value)} /></label><div className="actions"><Button busy={busy} onClick={() => review('APPROVED')}>Approve payment</Button><Button busy={busy} className="danger" onClick={() => review('REJECTED')}>Reject payment</Button></div></>}<h3>Verification history</h3>{detail.history.map((h: any) => <p key={h.id}>{statusLabel(h.status)} · {h.admin.email} · {new Date(h.createdAt).toLocaleString()} · {h.reason}</p>)}</article>}</>}{tab === 'Rules' && <RulesEditor />}{tab === 'Settings' && <Settings initial={dash.settings} onSaved={async () => {
+                }}>View</button></td></tr>)}</tbody></table>{players?.total === 0 && <p>No matching registrations.</p>}</div></>}<div className="pagination"><button className="secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button><span>Page {page} · {players?.total ?? 0} records</span><button className="secondary" disabled={page * 20 >= (players?.total ?? 0)} onClick={() => setPage(page + 1)}>Next</button></div>{detail && <article className="card detail player-profile-anchor" ref={profileRef} tabIndex={-1}><button className="secondary" onClick={() => setDetail(null)}>Close details</button><h2>{detail.fullName}</h2><p>{detail.reference} · {statusLabel(detail.status)} · ₹{detail.fee}</p><p className="muted">{t({ en: 'Registered on', bn: 'নিবন্ধনের তারিখ' })}: {new Date(detail.createdAt).toLocaleString(language === 'bn' ? 'bn-IN' : 'en-IN')}</p><ProfilePhoto key={detail.id} playerId={detail.id} hasPhoto={detail.hasPhoto} photoUrl={detail.photoUrl} onSaved={result => { setDetail((current: any) => ({ ...current, ...result })); setPlayers((current: any) => ({ ...current, items: current.items.map((player: any) => player.id === detail.id ? { ...player, ...result } : player) })); }} /><dl>{Object.entries(detail.data).map(([k, v]) => <div key={k}><dt>{t(labels[k] || k)}</dt><dd>{typeof v === 'boolean' ? t(v ? { en: 'Yes', bn: 'হ্যাঁ' } : { en: 'No', bn: 'না' }) : String(v || '—')}</dd></div>)}</dl><h3>Payment submissions</h3>{detail.payments.map((p: any) => <div className="history" key={p.id}><p>Transaction: <strong>{p.transactionId}</strong> · {new Date(p.createdAt).toLocaleString()}</p><a href={'/api/admin/proofs/' + p.id} target="_blank" rel="noreferrer">Open private screenshot ↗</a></div>)}{detail.status === 'UNDER_REVIEW' && <><label>Review / rejection reason<textarea value={reason} maxLength={1000} onChange={e => setReason(e.target.value)} /></label><div className="actions"><Button busy={busy} onClick={() => review('APPROVED')}>Approve payment</Button><Button busy={busy} className="danger" onClick={() => review('REJECTED')}>Reject payment</Button></div></>}<h3>Verification history</h3>{detail.history.map((h: any) => <p key={h.id}>{statusLabel(h.status)} · {h.admin.email} · {new Date(h.createdAt).toLocaleString()} · {h.reason}</p>)}</article>}</>}{tab === 'Rules' && <RulesEditor />}{tab === 'Settings' && <Settings initial={dash.settings} onSaved={async () => {
       setMessage('Tournament settings saved.');
       await load();
       await refresh();
-    }} onError={setError} />}{tab === 'Audit logs' && <><div className="table-wrap"><table><thead><tr><th>When</th><th>Admin</th><th>Action</th><th>Target</th></tr></thead><tbody>{audit.map(a => <tr key={a.id}><td>{new Date(a.createdAt).toLocaleString()}</td><td>{a.adminId}</td><td>{a.action}</td><td>{a.target}</td></tr>)}</tbody></table></div><div className="pagination"><button disabled={auditPage <= 1} onClick={() => setAuditPage(auditPage - 1)}>Previous</button><span>Page {auditPage}</span><button disabled={audit.length < 50} onClick={() => setAuditPage(auditPage + 1)}>Next</button></div></>}</Page>;
+    }} onError={setError} />}{tab === 'Audit logs' && <><div className="table-wrap" role="region" aria-label="Scrollable registration table" tabIndex={0}><table><thead><tr><th>When</th><th>Admin</th><th>Action</th><th>Target</th></tr></thead><tbody>{audit.map(a => <tr key={a.id}><td>{new Date(a.createdAt).toLocaleString()}</td><td>{a.adminId}</td><td>{a.action}</td><td>{a.target}</td></tr>)}</tbody></table></div><div className="pagination"><button disabled={auditPage <= 1} onClick={() => setAuditPage(auditPage - 1)}>Previous</button><span>Page {auditPage}</span><button disabled={audit.length < 50} onClick={() => setAuditPage(auditPage + 1)}>Next</button></div></>}</Page>;
 }
 export function Settings({
   initial,

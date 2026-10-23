@@ -59,7 +59,7 @@ async function admin(req: Request, res: Response, next: NextFunction) {
 const publicSettings = async () => {
   const s = await db.settings.findUniqueOrThrow({
     where: {
-      id: 1
+      id: '1'
     }
   });
   const accepted = await db.registration.count({
@@ -71,6 +71,7 @@ const publicSettings = async () => {
   return {
     ...s,
     rules: undefined,
+    lockVersion: undefined,
     tournamentRules: publicRules(s.rules),
     accepted,
     available: Math.max(0, s.capacity - accepted),
@@ -120,7 +121,7 @@ app.use('/api', (req, _res, next) => {
   next();
 });
 app.get('/api/health', async (_req, res) => {
-  await db.$queryRaw`SELECT 1`;
+  await db.$runCommandRaw({ ping: 1 });
   res.json({
     ok: true
   });
@@ -150,7 +151,7 @@ app.post('/api/registrations', rateLimit({
     }
     const s = await tx.settings.findUniqueOrThrow({
       where: {
-        id: 1
+        id: '1'
       }
     });
     const now = new Date();
@@ -205,6 +206,7 @@ app.get('/api/status', async (req, res) => {
     fullName: r.fullName,
     status: r.status,
     fee: r.fee,
+    hasPhoto: !!r.photoKey,
     createdAt: r.createdAt,
     history,
     ...(r.status === 'APPROVED' ? {
@@ -221,6 +223,45 @@ const upload = multer({
     fieldSize: 200
   }
 }).single('proof');
+const photoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 4 * 1024 * 1024, files: 1, fields: 0 } }).single('photo');
+
+function adminPhoto(r: { id: string; photoKey?: string | null; photoUpdatedAt?: Date | null }) {
+  return { hasPhoto: !!r.photoKey, photoUrl: r.photoKey ? `/api/admin/players/${encodeURIComponent(r.id)}/photo?v=${r.photoUpdatedAt?.getTime() || 0}` : null };
+}
+async function savePhoto(id: string, buffer: Buffer | undefined, adminId?: string) {
+  if (!buffer) fail(400, 'Choose a player photo');
+  let image: Buffer;
+  try { image = await cleanImage(buffer!); } catch (error) { return fail(400, (error as Error).message); }
+  const key = `${randomToken()}.jpg`;
+  await putProof(key, image);
+  let previous: string | null = null;
+  try {
+    const saved = await locked(async tx => {
+      const existing = await tx.registration.findUnique({ where: { id } });
+      if (!existing) return fail(404, 'Player not found');
+      previous = existing.photoKey;
+      const updated = await tx.registration.update({ where: { id }, data: { photoKey: key, photoUpdatedAt: new Date() } });
+      if (adminId) await tx.audit.create({ data: { adminId, action: 'UPDATE_PLAYER_PHOTO', target: id } });
+      return updated;
+    });
+    if (previous) await deleteProof(previous).catch(() => console.error('Previous player photo cleanup failed'));
+    return saved;
+  } catch (error) {
+    await deleteProof(key).catch(() => console.error('Player photo cleanup failed'));
+    throw error;
+  }
+}
+app.get('/api/profile-photo', async (req, res) => {
+  const r = await player(req);
+  if (!r.photoKey) return fail(404, 'No player photo has been uploaded');
+  res.type('jpeg').set('Content-Disposition', 'inline; filename="player-photo.jpg"').send(await getProof(r.photoKey));
+});
+app.post('/api/profile-photo', async (req, res, next) => {
+  try { res.locals.registration = await player(req); next(); } catch (error) { next(error); }
+}, photoUpload, async (req, res) => {
+  await savePhoto(res.locals.registration.id, req.file?.buffer);
+  res.json({ hasPhoto: true });
+});
 app.post('/api/payment', async (req, res, next) => {
   try {
     res.locals.registration = await player(req);
@@ -327,14 +368,14 @@ app.get('/api/admin/me', (_req, res) => res.json({
   email: res.locals.admin.email
 }));
 app.get('/api/admin/rules', async (_req, res) => {
-  const settings = await db.settings.findUniqueOrThrow({ where: { id: 1 } });
+  const settings = await db.settings.findUniqueOrThrow({ where: { id: '1' } });
   res.json({ document: readRules(settings.rules), reviewNotes, posterAvailable: false });
 });
 app.put('/api/admin/rules', async (req, res) => {
   const document = rulesDocumentSchema.parse(req.body);
   try { validatePublication(document); } catch (error) { return fail(400, (error as Error).message); }
   await locked(async tx => {
-    await tx.settings.update({ where: { id: 1 }, data: { rules: JSON.stringify(document) } });
+    await tx.settings.update({ where: { id: '1' }, data: { rules: JSON.stringify(document) } });
     await tx.audit.create({ data: { adminId: res.locals.admin.id, action: 'UPDATE_RULES', target: '1' } });
   });
   res.json({ ok: true });
@@ -419,13 +460,17 @@ app.get('/api/admin/players', async (req, res) => {
       mobile: true,
       team: true,
       status: true,
-      createdAt: true
+      createdAt: true,
+      data: true,
+      fee: true,
+      photoKey: true,
+      photoUpdatedAt: true
     }
   }), db.registration.count({
     where
   })]);
   res.json({
-    items,
+    items: items.map(({ photoKey, photoUpdatedAt, ...r }) => ({ ...r, ...adminPhoto({ ...r, photoKey, photoUpdatedAt }) })),
     total,
     page
   });
@@ -443,6 +488,10 @@ app.get('/api/admin/players/:id', async (req, res) => {
       data: true,
       fee: true,
       createdAt: true,
+      mobile: true,
+      team: true,
+      photoKey: true,
+      photoUpdatedAt: true,
       payments: {
         select: {
           id: true,
@@ -475,7 +524,19 @@ app.get('/api/admin/players/:id', async (req, res) => {
       target: r!.id
     }
   });
-  res.json(r);
+  const { photoKey, photoUpdatedAt, ...details } = r!;
+  res.json({ ...details, ...adminPhoto({ ...details, photoKey, photoUpdatedAt }) });
+});
+app.get('/api/admin/players/:id/photo', async (req, res) => {
+  const r = await db.registration.findUnique({ where: { id: String(req.params.id) }, select: { id: true, photoKey: true } });
+  if (!r?.photoKey) return fail(404, 'Player photo not found');
+  const image = await getProof(r.photoKey);
+  await db.audit.create({ data: { adminId: res.locals.admin.id, action: 'VIEW_PLAYER_PHOTO', target: r.id } });
+  res.type('jpeg').set('Content-Disposition', 'inline; filename="player-photo.jpg"').send(image);
+});
+app.post('/api/admin/players/:id/photo', photoUpload, async (req, res) => {
+  const saved = await savePhoto(String(req.params.id), req.file?.buffer, res.locals.admin.id);
+  res.json(adminPhoto(saved));
 });
 app.get('/api/admin/proofs/:id', async (req, res) => {
   const p = await db.payment.findUnique({
@@ -512,7 +573,7 @@ app.post('/api/admin/players/:id/review', async (req, res) => {
     if (r!.status !== 'UNDER_REVIEW') fail(409, 'Only payments under review can be decided');
     const s = await tx.settings.findUniqueOrThrow({
       where: {
-        id: 1
+        id: '1'
       }
     });
     if (status === 'APPROVED' && (await tx.registration.count({
@@ -559,7 +620,7 @@ app.put('/api/admin/settings', async (req, res) => {
     }))) fail(409, 'Capacity cannot be lower than the approved count');
     await tx.settings.update({
       where: {
-        id: 1
+        id: '1'
       },
       data: {
         ...data,

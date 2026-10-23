@@ -6,7 +6,7 @@
   "functions": {
     "api/index.ts": {
       "maxDuration": 30,
-      "includeFiles": "public/images/**"
+      "includeFiles": "{prisma/schema.prisma,node_modules/.prisma/client/**,public/images/**}"
     }
   },
   "routes": [

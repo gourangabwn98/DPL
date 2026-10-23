@@ -1,4 +1,4 @@
-/** Requires an EMPTY disposable PostgreSQL database, never a production URL. */
+/** Requires an EMPTY disposable MongoDB replica-set database, never production. */
 import { beforeAll, afterAll, beforeEach, describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
 import { randomUUID } from 'node:crypto';
@@ -17,7 +17,7 @@ vi.mock('../server/rate-store', async importOriginal => {
   return { ...actual, rateStore: (namespace: string) => new actual.DatabaseRateStore(namespace) };
 });
 const integration = process.env.TEST_DATABASE_CONFIRMED === 'true' ? describe : describe.skip;
-integration('real PostgreSQL API workflows', () => {
+integration('real MongoDB API workflows', () => {
   let image: Buffer;
   let cookie: string;
   let serial = 0;
@@ -47,10 +47,13 @@ integration('real PostgreSQL API workflows', () => {
     ensureTestDatabase();
     const payments = await db.payment.findMany();
     for (const p of payments) await deleteProof(p.storageKey);
+    const players = await db.registration.findMany();
+    for (const player of players) if (player.photoKey) await deleteProof(player.photoKey);
     await db.verification.deleteMany();
     await db.payment.deleteMany();
     await db.registration.deleteMany();
     await db.audit.deleteMany();
+    await db.privateImage.deleteMany();
   }
   beforeAll(async () => {
     ensureTestDatabase();
@@ -84,7 +87,7 @@ integration('real PostgreSQL API workflows', () => {
     await db.rateBucket.deleteMany();
     await db.settings.update({
       where: {
-        id: 1
+        id: '1'
       },
       data: {
         capacity: 150,
@@ -108,6 +111,17 @@ integration('real PostgreSQL API workflows', () => {
     });
     expect(r.status).toBe(400);
     expect(await db.registration.count()).toBe(0);
+  });
+  it('initializes missing settings at startup and responds with JSON', async () => {
+    await db.settings.deleteMany();
+    await initialize();
+    const response = await request(app).get('/api/tournament');
+    expect(response.status).toBe(200);
+    expect(response.type).toMatch(/json/);
+    expect(response.body.fee).toBe(100);
+    expect(response.body.capacity).toBe(150);
+    expect(response.body).not.toHaveProperty('lockVersion');
+    expect(await db.settings.count()).toBe(1);
   });
   it('shares atomic rate counters across instances and resets expired windows', async () => {
     const first = new DatabaseRateStore('integration-shared');
@@ -239,7 +253,7 @@ integration('real PostgreSQL API workflows', () => {
     expect(publicResponse.body.tournamentRules[0].text).toEqual(document.rules[0].text);
     expect(publicResponse.body.tournamentRules[8].text).toBeNull();
     expect(await db.audit.count({ where: { action: 'UPDATE_RULES' } })).toBe(1);
-    expect(readRules((await db.settings.findUniqueOrThrow({ where: { id: 1 } })).rules).legacyText).toBe('Previously saved organiser rules');
+    expect(readRules((await db.settings.findUniqueOrThrow({ where: { id: '1' } })).rules).legacyText).toBe('Previously saved organiser rules');
     document.rules[8].confirmed = true;
     expect((await request(app).put('/api/admin/rules').set('Cookie', cookie).set('Origin', origin).send(document)).status).toBe(400);
     expect((await request(app).put('/api/admin/rules').set('Cookie', cookie).set('Origin', origin).send({ ...document, rules: document.rules.slice(1) })).status).toBe(400);
@@ -247,7 +261,7 @@ integration('real PostgreSQL API workflows', () => {
   it('enforces capacity under concurrent approvals', async () => {
     await db.settings.update({
       where: {
-        id: 1
+        id: '1'
       },
       data: {
         capacity: 1
@@ -269,6 +283,20 @@ integration('real PostgreSQL API workflows', () => {
     const pub = await request(app).get('/api/tournament');
     expect(pub.body.available).toBe(0);
     expect(pub.body.accepting).toBe(false);
+  });
+  it('retries MongoDB write conflicts without exceeding capacity during a burst of approvals', async () => {
+    await db.settings.update({ where: { id: '1' }, data: { capacity: 3 } });
+    for (let i = 0; i < 8; i++) {
+      const registration = await register();
+      expect(registration.status).toBe(201);
+      expect((await proof(registration.body.token)).status).toBe(200);
+    }
+    const registrations = await db.registration.findMany();
+    const results = await Promise.all(registrations.map(r => review(r.id)));
+    expect(results.filter(r => r.status === 200)).toHaveLength(3);
+    expect(results.filter(r => r.status === 409)).toHaveLength(5);
+    expect(await db.registration.count({ where: { status: 'APPROVED' } })).toBe(3);
+    expect(await db.verification.count({ where: { status: 'APPROVED' } })).toBe(3);
   });
   it('rejects malicious and missing uploads without changing status', async () => {
     const r = await register();
@@ -300,7 +328,7 @@ integration('real PostgreSQL API workflows', () => {
   it('closes registration by configured date', async () => {
     await db.settings.update({
       where: {
-        id: 1
+        id: '1'
       },
       data: {
         closesAt: new Date(Date.now() - 1000)
@@ -312,5 +340,111 @@ integration('real PostgreSQL API workflows', () => {
     const r = await request(app).get('/api/missing');
     expect(r.status).toBe(404);
     expect(r.body.error).toBeTruthy();
+  });
+  it('stores screenshots and player photos privately in MongoDB for Vercel', async () => {
+    const previous = process.env.STORAGE_DRIVER;
+    process.env.STORAGE_DRIVER = 'mongodb';
+    try {
+      const registration = await register();
+      expect((await proof(registration.body.token)).status).toBe(200);
+      expect((await post('/api/profile-photo').set('Authorization', 'Bearer ' + registration.body.token).attach('photo', image, 'portrait.png')).status).toBe(200);
+      expect(await db.privateImage.count()).toBe(2);
+      const record = await db.registration.findFirstOrThrow();
+      const payment = await db.payment.findFirstOrThrow();
+      expect((await request(app).get('/api/admin/proofs/' + payment.id)).status).toBe(401);
+      const screenshot = await request(app).get('/api/admin/proofs/' + payment.id).set('Cookie', cookie);
+      expect(screenshot.status).toBe(200);
+      expect(screenshot.type).toBe('image/jpeg');
+      expect(screenshot.headers['cache-control']).toBe('no-store');
+      const portrait = await request(app).get('/api/profile-photo').set('Authorization', 'Bearer ' + registration.body.token);
+      expect(portrait.status).toBe(200);
+      expect(portrait.type).toBe('image/jpeg');
+      const bytes = await storage.getProof(record.photoKey!);
+      expect((await sharp(bytes).metadata()).format).toBe('jpeg');
+      expect((await post('/api/profile-photo').set('Authorization', 'Bearer ' + registration.body.token).attach('photo', image, 'replacement.png')).status).toBe(200);
+      expect(await db.privateImage.count()).toBe(2);
+      expect(await db.privateImage.findUnique({ where: { key: record.photoKey! } })).toBeNull();
+      expect((await db.registration.findFirstOrThrow()).status).toBe('UNDER_REVIEW');
+      await storage.deleteProof(payment.storageKey);
+      await storage.deleteProof(payment.storageKey);
+      expect(await db.privateImage.count()).toBe(1);
+      const publicData = await request(app).get('/api/tournament');
+      expect(publicData.text).not.toContain(record.photoKey!);
+      expect(publicData.text).not.toContain('PrivateImage');
+    } finally { if (previous === undefined) delete process.env.STORAGE_DRIVER; else process.env.STORAGE_DRIVER = previous; }
+  });
+  it('keeps player cards private and supports existing registrations without a photo', async () => {
+    const registration = await register();
+    const record = await db.registration.findFirstOrThrow();
+    expect((await request(app).get('/api/admin/players')).status).toBe(401);
+    expect((await request(app).get(`/api/admin/players/${record.id}/photo`)).status).toBe(401);
+    expect((await request(app).get('/api/profile-photo')).status).toBe(401);
+    const list = await request(app).get('/api/admin/players').set('Cookie', cookie);
+    expect(list.body.items[0]).toMatchObject({ fullName: 'Test Player', fee: 100, hasPhoto: false, photoUrl: null, data: { role: 'Batter' } });
+    expect(list.body.items[0]).not.toHaveProperty('photoKey');
+    expect(list.body.items[0]).not.toHaveProperty('tokenHash');
+    expect(list.body.items[0]).not.toHaveProperty('requestKey');
+    const status = await request(app).get('/api/status').set('Authorization', 'Bearer ' + registration.body.token);
+    expect(status.body.hasPhoto).toBe(false);
+    expect(status.body).not.toHaveProperty('data');
+  });
+  it('accepts an optional owner photo and serves it only to its owner or an authenticated admin', async () => {
+    const first = await register(), second = await register();
+    const records = await db.registration.findMany();
+    const record = records.find(r => r.reference === first.body.reference)!;
+    const upload = await post('/api/profile-photo').set('Authorization', 'Bearer ' + first.body.token).attach('photo', image, 'portrait.png');
+    expect(upload.status).toBe(200);
+    expect(upload.body).toEqual({ hasPhoto: true });
+    const saved = await db.registration.findUniqueOrThrow({ where: { id: record.id } });
+    expect(saved.status).toBe('AWAITING_PAYMENT');
+    expect(saved.fee).toBe(100);
+    expect(saved.photoKey).toMatch(/^[a-f0-9]{64}\.jpg$/);
+    const owner = await request(app).get('/api/profile-photo').set('Authorization', 'Bearer ' + first.body.token);
+    expect(owner.status).toBe(200);
+    expect(owner.type).toBe('image/jpeg');
+    expect(owner.headers['cache-control']).toBe('no-store');
+    expect((await request(app).get('/api/profile-photo?registrationId=' + record.id).set('Authorization', 'Bearer ' + second.body.token)).status).toBe(404);
+    expect((await request(app).get(`/api/admin/players/${record.id}/photo`).set('Authorization', 'Bearer ' + first.body.token)).status).toBe(401);
+    const adminImage = await request(app).get(`/api/admin/players/${record.id}/photo`).set('Cookie', cookie);
+    expect(adminImage.status).toBe(200);
+    expect(adminImage.type).toBe('image/jpeg');
+    expect(await db.audit.count({ where: { action: 'VIEW_PLAYER_PHOTO', target: record.id } })).toBe(1);
+    const detail = await request(app).get(`/api/admin/players/${record.id}`).set('Cookie', cookie);
+    expect(detail.body.photoUrl).toMatch(/^\/api\/admin\/players\/[^/]+\/photo\?v=\d+$/);
+    expect(detail.body).not.toHaveProperty('photoKey');
+    const status = await request(app).get('/api/status').set('Authorization', 'Bearer ' + first.body.token);
+    expect(status.body.hasPhoto).toBe(true);
+    expect(status.body).not.toHaveProperty('invitation');
+    expect((await request(app).get('/api/tournament')).text).not.toContain(saved.photoKey!);
+  });
+  it('lets an admin replace a photo with an audit record without changing payment review', async () => {
+    const registration = await register();
+    await proof(registration.body.token);
+    const record = await db.registration.findFirstOrThrow();
+    expect((await post(`/api/admin/players/${record.id}/photo`).attach('photo', image, 'portrait.png')).status).toBe(401);
+    const first = await post(`/api/admin/players/${record.id}/photo`).set('Cookie', cookie).attach('photo', image, 'portrait.png');
+    expect(first.status).toBe(200);
+    const oldKey = (await db.registration.findFirstOrThrow()).photoKey!;
+    expect((await post(`/api/admin/players/${record.id}/photo`).set('Cookie', cookie).attach('photo', image, 'new.png')).status).toBe(200);
+    const updated = await db.registration.findFirstOrThrow();
+    expect(updated.photoKey).not.toBe(oldKey);
+    await expect(storage.getProof(oldKey)).rejects.toThrow();
+    expect(updated.status).toBe('UNDER_REVIEW');
+    expect(await db.payment.count()).toBe(1);
+    expect(await db.verification.count()).toBe(0);
+    expect(await db.audit.count({ where: { action: 'UPDATE_PLAYER_PHOTO', target: record.id } })).toBe(2);
+    expect((await review(record.id)).status).toBe(200);
+  });
+  it('rejects invalid, oversized or failed photo uploads without losing an existing photo', async () => {
+    const registration = await register();
+    const token = registration.body.token;
+    expect((await post('/api/profile-photo').set('Authorization', 'Bearer ' + token).attach('photo', image, 'portrait.png')).status).toBe(200);
+    const key = (await db.registration.findFirstOrThrow()).photoKey;
+    expect((await post('/api/profile-photo').set('Authorization', 'Bearer ' + token).attach('photo', Buffer.from('<svg onload="alert(1)"/>'), 'fake.png')).status).toBe(400);
+    expect((await post('/api/profile-photo').set('Authorization', 'Bearer ' + token).attach('photo', Buffer.alloc(4 * 1024 * 1024 + 1), 'large.png')).status).toBe(400);
+    const failed = vi.spyOn(storage, 'putProof').mockRejectedValueOnce(new Error('Storage unavailable'));
+    try { expect((await post('/api/profile-photo').set('Authorization', 'Bearer ' + token).attach('photo', image, 'portrait.png')).status).toBe(500); } finally { failed.mockRestore(); }
+    expect((await db.registration.findFirstOrThrow()).photoKey).toBe(key);
+    expect((await request(app).get('/api/profile-photo').set('Authorization', 'Bearer ' + token)).status).toBe(200);
   });
 });

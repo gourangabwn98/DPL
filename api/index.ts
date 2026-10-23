@@ -1,6 +1,27 @@
-import { app } from '../server/app.js';
-import { validateConfig } from '../server/config.js';
+import type { Request, Response } from 'express';
 
-// Vercel invokes the Express handler; do not start a listening server here.
-validateConfig();
-export default app;
+let ready: Promise<typeof import('../server/app.js').app> | undefined;
+async function initializeApi() {
+  const { validateConfig } = await import('../server/config.js');
+  try { validateConfig(); } catch (error) {
+    // Validation messages name settings, never print their secret values.
+    console.error('Invalid tournament configuration:', error instanceof Error ? error.message : 'Unknown setting');
+    throw error;
+  }
+  const [{ app }, { initialize }] = await Promise.all([import('../server/app.js'), import('../server/db.js')]);
+  await initialize();
+  return app;
+}
+
+// Import native libraries and connect inside the handler so startup failures also
+// return JSON instead of Vercel's plain-text FUNCTION_INVOCATION_FAILED page.
+export default async function handler(req: Request, res: Response) {
+  try {
+    ready ||= initializeApi().catch(error => { ready = undefined; throw error; });
+    const app = await ready;
+    return app(req, res);
+  } catch (error) {
+    console.error('Tournament API startup unavailable', { name: error instanceof Error ? error.name : 'UnknownError', code: (error as { code?: string })?.code });
+    res.set('Cache-Control', 'no-store').status(503).json({ error: 'The tournament service cannot start. The organiser must check the database connection and hosting configuration.' });
+  }
+}

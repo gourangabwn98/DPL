@@ -12,6 +12,9 @@ export async function api<T = any>(url: string, options: RequestInit = {}): Prom
   try {
     data = await res.json();
   } catch {
+    if (res.status === 413) throw new Error('Upload is too large. Choose an image of 4 MB or smaller.');
+    if (res.status >= 500) throw new Error('The tournament service is unavailable. The organiser must check the hosting configuration.');
+    if (res.status === 404 || res.headers.get('content-type')?.includes('text/html')) throw new Error('The API route is unavailable. The organiser must check the hosting API routes.');
     throw new Error('Server returned an unexpected response. Please try again.');
   }
   if (!res.ok) throw new Error(data.error || 'Request failed');

@@ -1,11 +1,11 @@
+.git
 .env
 .env.*
-!.env.example
-.git
-.npm-cache
+.local-mongodb
 .local-postgres
+.npm-cache
+.database-transfer
 .dpl-test-*
 private-uploads
 coverage
-tests
 *.log

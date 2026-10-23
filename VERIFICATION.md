@@ -1,24 +1,24 @@
-# Verification record
+# Verification
 
-Environment: Windows, Node.js v22.22.1, 22 October 2026.
+The verification workflow is .github/workflows/verify.yml.
 
-| Check | Actual result |
-|---|---|
-| Folder inspection | Empty project; application created from scratch |
-| Original Google Form | Web fetch returned inaccessible; questions not extracted |
-| npm install | Blocked: registry requests EACCES; no dependencies installed |
-| Offline install | Blocked: required AWS SDK package not cached (ENOTCACHED) |
-| PostgreSQL via Docker | Blocked: Docker daemon pipe unavailable |
-| Type check | Attempted; `tsc` unavailable because install failed |
-| ESLint | Attempted; `eslint` unavailable because install failed |
-| Vitest unit/integration suite | Attempted; `vitest` unavailable because install failed |
-| Production build | Attempted; stops at unavailable `tsc` |
-| Dependency-free security tests | **7 passed**, `node --experimental-strip-types --test tests/security.node.mjs` |
-| TypeScript/TSX syntax and relative imports | **16 source files passed**, using an available Babel parser after fixing a backend bracket error. This is not a type check. |
-| CSS syntax | Passed using an available PostCSS parser |
-| Browser/mobile verification | Not run; dependency/database prerequisites unavailable |
-| Production deployment / real UPI payment | Not performed |
+- npm run typecheck: TypeScript contracts.
+- npm run lint: source lint.
+- npm run test:security: token, invitation and CSV protections.
+- npm test: unit tests; API integration is skipped unless explicitly enabled.
+- npm run test:integration: unit and API workflows against a disposable MongoDB replica set and isolated uploads.
+- npm run test:ui: UI checks.
+- npm run build: React assets and compiled Express backend.
 
-Local setup update: Docker has been removed from the VS Code run tasks. `npm run dev` now launches a persistent embedded PostgreSQL database, migrations and the app. `node --check scripts/local.mjs` passed. Attempted startup stopped with the expected missing-dependencies message; this new startup path has not been exercised with installed dependencies because npm network access is still restricted. No claim of a running local site is made.
+Tests cover validation, authentication, private status access, payment uploads, storage failures, rejection/resubmission and concurrent approval capacity. Local checks do not prove a live deployment, real payment or production data transfer. Review organiser configuration and staging behavior before release.
 
-Security checks actually run: random token generation, stable secret-bound idempotency derivation, token hashing, unverified invite suppression, malformed/unsafe invitation rejection, valid verified invitation handling, CSV escaping and formula neutralization. These do **not** substitute for the unrun database/API/build checks.
+## Latest local verification
+
+- TypeScript, ESLint and production build passed.
+- Vitest: 55 tests passed, including 22 real MongoDB API integration tests and 7 private-storage configuration checks.
+- Dependency-free security suite: 7 tests passed.
+- UI checks passed for bilingual rules, language persistence, private-token/form state and 390/768/1440 pixel layouts.
+- Build warnings: upstream dependency comment annotations and a frontend chunk over 500 kB; output was generated successfully.
+- AWS SDK and embedded PostgreSQL packages are absent from the lockfile.
+- Existing private environment files, upload directories and local database data were preserved.
+- Production deployment, real payments and existing-data migration were not performed.

@@ -2,7 +2,7 @@ generator client {
   provider = "prisma-client-js"
 }
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url = env("DATABASE_URL")
 }
 enum Status {
@@ -12,7 +12,8 @@ enum Status {
   REJECTED
 }
 model Settings {
-  id Int @id @default(1)
+  id String @id @default("1") @map("_id")
+  lockVersion Int @default(0)
   name String @default("DHANDALSHA PREMIER LEAGUE")
   description String @default("Cricket. Community. A new chapter.")
   fee Int @default(100)
@@ -25,13 +26,15 @@ model Settings {
   fields Json @default("{}")
 }
 model Registration {
-  id String @id @default(uuid())
+  id String @id @default(uuid()) @map("_id")
   reference String @unique
   mobile String @unique
   fullName String
   team String @default("")
   data Json
   fee Int
+  photoKey String?
+  photoUpdatedAt DateTime?
   status Status @default(AWAITING_PAYMENT)
   tokenHash String @unique
   requestKey String @unique
@@ -44,7 +47,7 @@ model Registration {
   @@index([fullName])
 }
 model Payment {
-  id String @id @default(uuid())
+  id String @id @default(uuid()) @map("_id")
   registrationId String
   registration Registration @relation(fields:[registrationId], references:[id], onDelete:Cascade)
   transactionId String @unique
@@ -53,7 +56,7 @@ model Payment {
   @@index([registrationId, createdAt])
 }
 model Verification {
-  id String @id @default(uuid())
+  id String @id @default(uuid()) @map("_id")
   registrationId String
   registration Registration @relation(fields:[registrationId], references:[id], onDelete:Cascade)
   adminId String
@@ -63,21 +66,21 @@ model Verification {
   createdAt DateTime @default(now())
 }
 model Admin {
-  id String @id @default(uuid())
+  id String @id @default(uuid()) @map("_id")
   email String @unique
   passwordHash String
   sessions Session[]
   verifications Verification[]
 }
 model Session {
-  tokenHash String @id
+  tokenHash String @id @map("_id")
   adminId String
   admin Admin @relation(fields:[adminId], references:[id], onDelete:Cascade)
   expiresAt DateTime
   @@index([expiresAt])
 }
 model Audit {
-  id String @id @default(uuid())
+  id String @id @default(uuid()) @map("_id")
   adminId String
   action String
   target String
@@ -85,8 +88,15 @@ model Audit {
   @@index([createdAt])
 }
 model RateBucket {
-  key String @id
+  key String @id @map("_id")
   hits Int
   resetAt DateTime
   @@index([resetAt])
+}
+
+model PrivateImage {
+  key String @id @map("_id")
+  data Bytes
+  createdAt DateTime @default(now())
+  @@index([createdAt])
 }

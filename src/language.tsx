@@ -2,6 +2,10 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { BilingualText } from '../shared/rules';
 
 const bengali: Record<string, string> = {
+  'Upload is too large. Choose an image of 4 MB or smaller.': 'আপলোডটি খুব বড়। সর্বাধিক ৪ এমবি ছবি বাছুন।',
+  'The tournament service is unavailable. The organiser must check the hosting configuration.': 'টুর্নামেন্ট পরিষেবা পাওয়া যাচ্ছে না। আয়োজককে হোস্টিং সেটিংস পরীক্ষা করতে হবে।',
+  'The API route is unavailable. The organiser must check the hosting API routes.': 'API পরিষেবার ঠিকানা পাওয়া যাচ্ছে না। আয়োজককে হোস্টিংয়ের API রুট পরীক্ষা করতে হবে।',
+  'Cricket role': 'ক্রিকেটে ভূমিকা', 'Registration consent': 'নিবন্ধনের সম্মতি', 'Parent / guardian consent': 'অভিভাবকের সম্মতি',
   'Continue to payment': 'পেমেন্টের ধাপে যান', 'Start registration': 'নিবন্ধন শুরু করুন', 'Get to know the league': 'লিগ সম্পর্কে জানুন', 'Read the rules': 'নিয়মাবলি পড়ুন',
   'Track your registration': 'আপনার নিবন্ধনের অবস্থা দেখুন', 'Track an existing registration': 'আগের নিবন্ধনের অবস্থা দেখুন', 'Open secure status': 'সুরক্ষিত অবস্থা দেখুন',
   'Submit for manual review': 'যাচাইয়ের জন্য জমা দিন', 'View status': 'অবস্থা দেখুন', 'Resubmit proof': 'প্রমাণ আবার জমা দিন', 'Join WhatsApp Group': 'হোয়াটসঅ্যাপ গ্রুপে যোগ দিন',

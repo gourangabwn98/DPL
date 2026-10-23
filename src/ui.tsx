@@ -2,6 +2,9 @@ import { useLanguage } from './language';
 import React, { useState, createContext, useContext } from 'react';
 export const Tournament = createContext<any>(null);
 export const labels: Record<string, string> = {
+  role: 'Cricket role',
+  consent: 'Registration consent',
+  guardianConsent: 'Parent / guardian consent',
   fullName: 'Full name',
   mobile: 'Mobile number',
   age: 'Age',

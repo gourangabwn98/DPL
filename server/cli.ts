@@ -30,6 +30,7 @@ try {
     });
     for (const r of old) {
       for (const p of r.payments) await deleteProof(p.storageKey);
+      if (r.photoKey) await deleteProof(r.photoKey);
       await db.registration.delete({
         where: {
           id: r.id

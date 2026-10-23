@@ -1,0 +1,104 @@
+/* Mobile refinements share the existing league palette and components. */
+.menu-toggle{display:none}
+.site-header nav a[aria-current="page"]{color:var(--gold)}
+.table-wrap{max-width:100%;min-width:0;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
+@media(max-width:760px){
+  :root{--gutter:clamp(16px,4.5vw,24px)}
+  body{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  #root,main,.container,.page,.card,.form,.form-layout,.field-grid,.rules-list,.rule-card{min-width:0}
+  .site-header{grid-template-columns:minmax(0,1fr) auto;gap:12px 14px;padding-block:14px}
+  .site-header .brand{grid-column:1;grid-row:1;min-width:0;gap:9px;font-size:clamp(13px,2.8vw,16px)}
+  .site-header .brand small{font-size:9px;letter-spacing:1.4px}
+  .site-header .crest{width:38px;height:46px;font-size:18px}
+  .site-header .language-switch{grid-column:2;grid-row:1;min-width:88px;gap:2px}
+  .site-header .language-switch select{min-height:44px;font-size:16px;padding:8px 10px}
+  .site-header .language-switch>span{font-size:10px}
+  .site-header .menu-toggle{display:flex;grid-column:1/-1;grid-row:2;justify-content:flex-start;min-height:44px;padding:10px 12px;font-size:14px;border-color:var(--line);background:#ffffff04}
+  .site-header nav{grid-column:1/-1;grid-row:3;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;justify-self:stretch;padding:0;border:0;font-size:13px}
+  .site-header nav[data-open="false"]{display:none}
+  .site-header nav>a{display:flex;align-items:center;min-height:48px;padding:12px;border:1px solid var(--line);border-radius:7px;white-space:normal;line-height:1.6;overflow-wrap:anywhere}
+  .site-header nav .nav-cta{justify-content:center;border-color:#e9c46a70;padding:12px}
+  html[lang=bn] .site-header nav{gap:8px;font-size:13px}
+  .page{min-height:50vh;padding-block:32px 48px}
+  .page>h1{font-size:clamp(28px,6vw,36px);line-height:1.25;overflow-wrap:anywhere}
+  .hero{padding-top:28px}
+  .hero h1{overflow-wrap:anywhere}
+  .hero-description,.lead{font-size:15px;line-height:1.85}
+  .hero .actions{margin-block:22px}
+  .eyebrow{flex-wrap:wrap;letter-spacing:1px}
+  .hero .eyebrow{flex-wrap:nowrap;max-width:100%;font-size:10px;letter-spacing:.5px}
+  .season{margin-top:22px;line-height:1.8}
+  .organiser strong{line-height:1.7;overflow-wrap:anywhere}
+  .card{padding:22px 20px}
+  .card h2,.card h3{overflow-wrap:anywhere}
+  input,select,textarea{font-size:16px;min-height:48px;max-width:100%}
+  input[type=file]{font-size:14px;overflow:hidden;padding:8px}
+  input[type=file]::file-selector-button{min-height:38px;padding:8px;margin-right:8px}
+  label{font-size:14px}
+  .check{font-size:13px;grid-template-columns:20px minmax(0,1fr);gap:10px;min-height:44px}
+  .check input{width:20px;height:20px;min-height:20px;margin-top:3px}
+  .check>span{min-width:0;overflow-wrap:anywhere}
+  button,.button{max-width:100%;min-height:48px;overflow-wrap:anywhere;white-space:normal}
+  .form>button,.form>.button{align-self:stretch;width:100%}
+  .actions{gap:12px}
+  .actions>button,.actions>.button{flex:1 1 180px}
+  .card p,.history,.notice,.prose,dd{overflow-wrap:anywhere}
+  .notice{padding:16px;font-size:13px}
+  .qr{width:min(100%,270px);max-width:100%;height:auto;max-height:none}
+  .qr-placeholder{min-height:200px;padding:18px}
+  .qr-placeholder strong{font-size:15px}
+  .rules-list{gap:12px;margin-block:24px}
+  .rule-card{grid-template-columns:34px minmax(0,1fr);gap:12px;padding:20px 16px}
+  .rule-number{width:32px;min-height:32px;font-size:14px}
+  .rule-card p{font-size:15px;line-height:1.95}
+  .admin-tabs{gap:8px;margin-block:22px}
+  .admin-tabs>button{flex:1 1 calc(50% - 8px);min-height:48px;padding:10px;font-size:13px}
+  .admin-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .admin-stats small{min-height:36px;font-size:12px}
+  .search-bar{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .search-bar>input,.search-bar>select{grid-column:1/-1}
+  .search-bar button,.search-bar a{white-space:normal;padding:12px 10px}
+  td button{min-height:44px;min-width:52px}
+  .table-wrap:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+  .pagination{display:grid;grid-template-columns:auto minmax(0,1fr) auto;font-size:12px;gap:8px}
+  .pagination>span{text-align:center;overflow-wrap:anywhere}
+  .pagination button{min-height:44px;padding:10px 12px;font-size:12px}
+  footer{padding-block:28px;gap:10px}
+  footer div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 16px}
+  footer div>a{display:flex;align-items:center;min-height:44px;font-size:12px;line-height:1.7}
+  footer .footer-title{line-height:1.7;overflow-wrap:anywhere}
+  html[lang=bn] .page>h1{font-size:clamp(27px,5.5vw,34px);line-height:1.5}
+}
+@media(max-width:600px){
+  .field-grid{grid-template-columns:minmax(0,1fr)}
+  .hero .actions{align-items:stretch;flex-direction:column}
+  .hero .actions>.button{flex:auto;width:100%}
+  .hero .text-link{justify-content:center;min-height:44px}
+  .stats>div{padding:22px 16px}
+  .stats span{font-size:10px;letter-spacing:.5px}
+  .stats strong{font-size:clamp(25px,6vw,32px)}
+  .intro{gap:22px;padding-block:44px}
+  .steps-section{padding-block:44px}
+  .steps{grid-template-columns:minmax(0,1fr)}
+  .steps p{font-size:14px}
+  .cta{padding-block:48px}
+  .cta h2{font-size:clamp(30px,7vw,42px)}
+}
+@media(max-width:480px){
+  .hero h1{font-size:clamp(32px,9.2vw,44px)}
+  html[lang=bn] .hero h1{font-size:clamp(28px,8vw,36px);line-height:1.5}
+  .tournament-dates p{padding:14px 12px}
+  .tournament-dates strong{font-size:18px;letter-spacing:0}
+  .tournament-dates span{font-size:12px;min-height:36px}
+  .form-layout>aside .tournament-dates{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .status-card .button{width:100%}
+}
+@media(max-width:359px){
+  .tournament-dates,.form-layout>aside .tournament-dates{grid-template-columns:minmax(0,1fr)}
+  .tournament-dates span{min-height:0}
+  .tournament-dates p{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .tournament-dates span{max-width:50%;margin:0}
+  .tournament-dates strong{font-size:17px;flex-shrink:0}
+  .card{padding:20px 16px}
+  .rule-card{padding:18px 12px}
+}
