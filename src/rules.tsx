@@ -1,5 +1,6 @@
 import { useLanguage } from './language';
-import { rulesCopy, type PublicRule } from '../shared/rules';
+import type { PublicRule } from '../shared/rules';
+import { rulesCopy } from '../shared/rules-copy';
 
 export function RulesList({ rules }: { rules: PublicRule[] }) {
   const { t, language } = useLanguage();

@@ -4,6 +4,7 @@ import { LanguageProvider, translate } from '../src/language';
 import { RulesList } from '../src/rules';
 import { readRules, publicRules, reviewNotes, validatePublication } from '../server/tournament-rules';
 import { rulesDocumentSchema, rulesCopy } from '../shared/rules';
+import { eligibilityReady } from '../shared/eligibility';
 
 afterEach(() => vi.unstubAllGlobals());
 describe('official bilingual tournament rules', () => {
@@ -57,9 +58,14 @@ describe('official bilingual tournament rules', () => {
   it('does not publish the unresolved eligibility wording merely by checking confirmation', () => {
     const document = readRules('');
     document.rules[8].confirmed = true;
+    expect(eligibilityReady(document.rules[8].text)).toBe(false);
+    expect(() => validatePublication(document)).toThrow('both languages');
+    document.rules[8].text.bn = 'শুধুমাত্র পরীক্ষামূলক এলাকার খেলোয়াড়রা অংশ নিতে পারবেন।';
+    expect(eligibilityReady(document.rules[8].text)).toBe(false);
     expect(() => validatePublication(document)).toThrow('both languages');
     // Test-only organiser correction, not a proposed official eligibility rule.
     document.rules[8].text = { en: 'Only players from Test Locality may participate.', bn: 'শুধুমাত্র পরীক্ষামূলক এলাকার খেলোয়াড়রা অংশ নিতে পারবেন।' };
+    expect(eligibilityReady(document.rules[8].text)).toBe(true);
     expect(validatePublication(document)).toBe(document);
     expect(publicRules(JSON.stringify(document))[8].text).toEqual(document.rules[8].text);
   });

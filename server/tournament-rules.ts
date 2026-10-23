@@ -1,4 +1,5 @@
 import { rulesDocumentSchema, type RulesDocument, type PublicRule } from '../shared/rules.js';
+import { eligibilityReady } from '../shared/eligibility.js';
 
 // Supplied transcription, preserved verbatim. No poster image was available for comparison.
 const entries = [
@@ -40,7 +41,7 @@ export function publicRules(raw: string): PublicRule[] {
 export function validatePublication(document: RulesDocument) {
   const eligibility = document.rules[8];
   // The supplied English draft deliberately does not identify the eligible group.
-  if (eligibility.confirmed && (eligibility.text.bn.includes('ভাতার ব্রক') || eligibility.text.en === entries[8][1])) {
+  if (eligibility.confirmed && !eligibilityReady(eligibility.text)) {
     throw new Error('Confirm and correct the eligible locality/group in both languages before publishing rule 9');
   }
   return document;

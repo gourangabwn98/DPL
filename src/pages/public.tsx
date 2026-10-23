@@ -2,7 +2,7 @@ import { useLanguage, TournamentDates } from '../language';
 import { Link } from 'react-router-dom';
 import { useTournament, Page } from '../ui';
 import { RulesList } from '../rules';
-import { rulesCopy } from '../../shared/rules';
+import { rulesCopy } from '../../shared/rules-copy';
 export function Home() {
   const { t } = useLanguage();
   const {

@@ -57,16 +57,10 @@ async function admin(req: Request, res: Response, next: NextFunction) {
   }
 }
 const publicSettings = async () => {
-  const s = await db.settings.findUniqueOrThrow({
-    where: {
-      id: '1'
-    }
-  });
-  const accepted = await db.registration.count({
-    where: {
-      status: 'APPROVED'
-    }
-  });
+  const [s, accepted] = await Promise.all([
+    db.settings.findUniqueOrThrow({ where: { id: '1' } }),
+    db.registration.count({ where: { status: 'APPROVED' } })
+  ]);
   const now = new Date();
   return {
     ...s,
