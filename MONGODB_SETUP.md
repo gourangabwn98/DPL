@@ -6,7 +6,7 @@ The application uses MongoDB through Prisma. Transactions require a replica set;
 
 Run npm ci and npm run dev. The launcher uses port 27018 by default and persists data under ignored .local-mongodb/. Its first launch downloads the MongoDB binary. Keep this directory to retain development registrations.
 
-For an existing replica set or Atlas, set LOCAL_DATABASE_MODE=external and a private DATABASE_URL that includes a database name. URL-encode reserved characters in credentials. Never put the URI in client code or VITE_ variables.
+For Atlas, set a private DATABASE_URL that includes a database name. The launcher detects remote connections automatically, even if an old .env still says embedded. Set LOCAL_DATABASE_MODE=external to explicitly use an existing local or remote replica set. URL-encode reserved characters in credentials. Never put the URI in client code or VITE_ variables.
 
 ## Production setup
 

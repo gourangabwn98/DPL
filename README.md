@@ -13,7 +13,7 @@ npm run dev
 
 Open http://localhost:5173. The launcher starts a persistent local MongoDB replica set, generates the database client, syncs indexes, and starts Express and Vite. The first run downloads the MongoDB binary. Local database files persist in ignored .local-mongodb/; Ctrl+C stops the processes.
 
-When .env is missing, the launcher creates it from .env.example with a random token secret. Preserve existing environment files. To use an existing replica set or Atlas, set LOCAL_DATABASE_MODE=external and set the server-only DATABASE_URL with a database name. See [MongoDB setup](MONGODB_SETUP.md).
+When .env is missing, the launcher creates it from .env.example with a random token secret. Preserve existing environment files. Set the server-only DATABASE_URL with a database name. The launcher automatically uses Atlas/remote connections externally, including when an older .env still requests embedded mode. LOCAL_DATABASE_MODE=external explicitly uses an existing database. See [MongoDB setup](MONGODB_SETUP.md).
 
 VS Code includes install, MongoDB index synchronization, and local run tasks.
 
@@ -57,7 +57,7 @@ Use .env.example for supported names. Never commit real environment files or pre
 | Variable | Purpose |
 |---|---|
 | DATABASE_URL | MongoDB replica-set connection string with database name |
-| LOCAL_DATABASE_MODE | embedded for local development, external for an existing database |
+| LOCAL_DATABASE_MODE | auto detects the connection; external uses an existing database |
 | TOKEN_SECRET | Random secret of at least 32 characters |
 | APP_ORIGIN | Exact browser origin; HTTPS in production |
 | PORT, NODE_ENV, TRUST_PROXY | Listen port, runtime mode and trusted proxy hop count |
