@@ -18,6 +18,7 @@
     "db:push": "prisma db push",
     "uploads:copy": "tsx scripts/copy-uploads-to-mongodb.ts",
     "admin:create": "tsx server/cli.ts admin",
+    "admin:reset": "tsx server/cli.ts admin-reset",
     "data:purge": "tsx server/cli.ts purge",
     "test:security": "node --experimental-strip-types --test tests/security.node.mjs"
   },

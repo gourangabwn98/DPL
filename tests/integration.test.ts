@@ -10,6 +10,7 @@ import { config } from '../server/config';
 import { deleteProof } from '../server/storage';
 import * as storage from '../server/storage';
 import { DatabaseRateStore } from '../server/rate-store';
+import { resetAdminPassword } from '../server/admin-accounts';
 import { readRules } from '../server/tournament-rules';
 // Exercise the production shared rate store while keeping each disposable test isolated.
 vi.mock('../server/rate-store', async importOriginal => {
@@ -111,6 +112,24 @@ integration('real MongoDB API workflows', () => {
     });
     expect(r.status).toBe(400);
     expect(await db.registration.count()).toBe(0);
+  });
+  it('resets an existing admin password and revokes old sessions', async () => {
+    const email = `reset-${randomUUID()}@example.test`;
+    const oldPassword = 'original-password-12345';
+    const newPassword = 'replacement-password-67890';
+    const account = await db.admin.create({ data: { email, passwordHash: await argon2.hash(oldPassword) } });
+    const login = await post('/api/admin/login').send({ email, password: oldPassword });
+    expect(login.status).toBe(200);
+    const oldCookie = login.headers['set-cookie'][0].split(';')[0];
+    expect((await request(app).get('/api/admin/me').set('Cookie', oldCookie)).status).toBe(200);
+
+    await resetAdminPassword(email, newPassword);
+
+    expect((await request(app).get('/api/admin/me').set('Cookie', oldCookie)).status).toBe(401);
+    expect((await post('/api/admin/login').send({ email, password: oldPassword })).status).toBe(401);
+    expect((await post('/api/admin/login').send({ email, password: newPassword })).status).toBe(200);
+    expect(await db.audit.count({ where: { action: 'RESET_ADMIN_PASSWORD', target: account.id } })).toBe(1);
+    await expect(resetAdminPassword('missing@example.test', newPassword)).rejects.toThrow('Admin email not found');
   });
   it('initializes missing settings at startup and responds with JSON', async () => {
     await db.settings.deleteMany();

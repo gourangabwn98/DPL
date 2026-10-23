@@ -19,7 +19,7 @@ VS Code includes install, MongoDB index synchronization, and local run tasks.
 
 ## Administrator and payments
 
-While the development database is running, set ADMIN_EMAIL and a unique ADMIN_PASSWORD of at least 14 characters in the private environment, then run npm run admin:create. Remove the password afterwards. Sign in at /admin/login. The command refuses additional first-admin creation once an administrator exists.
+While the development database is running, set ADMIN_EMAIL and a unique ADMIN_PASSWORD of at least 14 characters in the private environment, then run npm run admin:create. Remove the password afterwards. Sign in at /admin/login. The command refuses additional first-admin creation once an administrator exists. For an existing account, set ADMIN_EMAIL and a new ADMIN_PASSWORD and run npm run admin:reset from a trusted machine connected to the same database. Reset revokes that admin's sessions; remove the password from the environment afterwards. Merely setting these variables in Vercel does not create or update an admin account.
 
 Supply the organiser's genuine QR at public/images/payment-qr.png, verify the payee, then set PAYMENT_QR_READY=true. No payment QR is bundled. Set UPI_ID and PAYEE_NAME only from verified organiser information.
 

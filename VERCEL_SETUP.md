@@ -55,14 +55,26 @@ screenshots. Vercel supplies its own `VERCEL` environment indicator. The app
 defaults to MongoDB upload storage there, but setting the driver explicitly avoids
 stale `local` configuration. `UPLOAD_DIR` is not required on Vercel.
 
-## 3. Configure the payment QR
+## 3. Create or reset the administrator
+
+Create the first administrator from a trusted machine that can connect to this
+same Atlas database. In a private local `.env`, set `DATABASE_URL`, `ADMIN_EMAIL`,
+and a new `ADMIN_PASSWORD` of at least 14 characters, then run
+`npm run admin:create`. If an admin already exists and the password must change,
+run `npm run admin:reset` with that admin's email and a new password. The reset
+revokes existing admin sessions. Remove `ADMIN_PASSWORD` from both local and
+Vercel environments after setup. Environment variables alone do not provision
+an admin. If the local command times out, add that machine's IP in Atlas Network
+Access before retrying.
+
+## 4. Configure the payment QR
 
 Add the genuine organiser QR file at `public/images/payment-qr.png` in the source
 repository and set `PAYMENT_QR_READY=true` after verifying the payee. Optional
 `UPI_ID` and `PAYEE_NAME` are public payment instructions, not banking credentials.
 QR readiness is independent of the API startup error.
 
-## 4. Redeploy and verify
+## 5. Redeploy and verify
 
 Changes to Vercel environment variables apply to new deployments. Redeploy the
 updated code after saving them. Check:
