@@ -77,6 +77,12 @@ If the build fails, inspect its build log for Atlas authentication/network/index
 errors. If the function returns 503, inspect Runtime Logs for the named invalid
 setting or database startup failure. Never share complete credential values.
 
+If Runtime Logs say `Vercel requires STORAGE_DRIVER=mongodb for persistent private
+uploads`, an existing Vercel environment variable is set to `local`. Change
+`STORAGE_DRIVER` to `mongodb` for Production and redeploy. The API handler uses
+Node's response methods so startup errors return JSON even before Express has
+initialized the response.
+
 ## Private screenshots and player portraits
 
 With `STORAGE_DRIVER=mongodb`, image bytes are stored in the `PrivateImage`
